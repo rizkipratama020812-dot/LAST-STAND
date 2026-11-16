@@ -1,19 +1,19 @@
-/* LAST STAND: WAVE DEFENSE - core logic (no DOM). Works in browser and Node. */
+/* WAVE OF DOOM - core logic (no DOM). Works in browser and Node. */
 (function (root) {
 'use strict';
 
 var W = 640, H = 360;
 var BASE_X = 104;            // enemies stop here to hit the castle
-var FIELD_TOP = 168, FIELD_BOT = 308;
-var LEASH = 430;             // player units won't chase enemies beyond this x
+var FIELD_TOP = 166, FIELD_BOT = 298;
+var LEASH = 360;             // player units won't chase enemies beyond this x
 
 // ---- DATA -------------------------------------------------------------
 var UNITS = {
   swordsman: { name: 'Swordsman', cost: 30,  hp: 75,  dmg: 13, range: 17, cd: 0.70, speed: 36, h: 34, fx: 'slash1', desc: 'Murah & cepat' },
-  archer:    { name: 'Archer',    cost: 45,  hp: 46,  dmg: 12, range: 105, cd: 0.90, speed: 30, h: 33, proj: 'arrow', desc: 'Jarak jauh' },
+  archer:    { name: 'Archer',    cost: 45,  hp: 46,  dmg: 1200, range: 190, cd: 0.90, speed: 30, h: 33, proj: 'arrow', desc: 'Jarak jauh' },
   knight:    { name: 'Knight',    cost: 75,  hp: 190, dmg: 15, range: 18, cd: 0.90, speed: 27, h: 36, fx: 'slash2', desc: 'Tank tangguh' },
   spearman:  { name: 'Spearman',  cost: 55,  hp: 95,  dmg: 18, range: 32, cd: 0.90, speed: 31, h: 38, fx: 'spark2', desc: 'Tusukan jauh' },
-  mage:      { name: 'Mage',      cost: 95,  hp: 52,  dmg: 30, range: 92, cd: 1.50, speed: 26, h: 35, proj: 'orb', aoe: 28, desc: 'Sihir area' },
+  mage:      { name: 'Mage',      cost: 95,  hp: 52,  dmg: 30, range: 170, cd: 1.50, speed: 26, h: 35, proj: 'orb', aoe: 28, desc: 'Sihir area' },
   heavy:     { name: 'Heavy',     cost: 130, hp: 320, dmg: 40, range: 23, cd: 1.30, speed: 21, h: 40, fx: 'slash3', aoe: 26, desc: 'Tebasan area' }
 };
 var UNIT_ORDER = ['swordsman', 'archer', 'knight', 'spearman', 'mage', 'heavy'];
@@ -24,10 +24,10 @@ var ENEMIES = {
   slime:      { name: 'Slime',       tier: 1, hp: 82,  dmg: 5,  range: 13, cd: 1.00, speed: 20, h: 24, reward: 7,  fx: 'dust' },
   orc:        { name: 'Orc',         tier: 2, hp: 165, dmg: 16, range: 19, cd: 1.00, speed: 28, h: 40, reward: 18, fx: 'slash1' },
   darkknight: { name: 'Dark Knight', tier: 2, hp: 245, dmg: 18, range: 19, cd: 1.00, speed: 24, h: 40, reward: 24, fx: 'slash2' },
-  darkarcher: { name: 'Dark Archer', tier: 2, hp: 112, dmg: 15, range: 105, cd: 1.10, speed: 26, h: 37, reward: 22, proj: 'arrow' },
+  darkarcher: { name: 'Dark Archer', tier: 2, hp: 112, dmg: 15, range: 118, cd: 1.10, speed: 26, h: 37, reward: 22, proj: 'arrow' },
   demon:      { name: 'Demon',       tier: 3, hp: 385, dmg: 34, range: 21, cd: 1.00, speed: 32, h: 44, reward: 40, fx: 'flame' },
   giant:      { name: 'Giant',       tier: 3, hp: 920, dmg: 58, range: 28, cd: 1.60, speed: 16, h: 58, reward: 70, fx: 'explosion3', aoe: 30 },
-  darklord:   { name: 'Dark Lord',   tier: 3, hp: 530, dmg: 46, range: 96, cd: 1.40, speed: 22, h: 50, reward: 80, proj: 'dark', aoe: 24 }
+  darklord:   { name: 'Dark Lord',   tier: 3, hp: 530, dmg: 46, range: 112, cd: 1.40, speed: 22, h: 50, reward: 80, proj: 'dark', aoe: 24 }
 };
 var TIER_POOL = {
   1: ['goblin', 'skeleton', 'slime'],
@@ -36,9 +36,9 @@ var TIER_POOL = {
 };
 
 var MODES = {
-  easy:   { id: 'easy',   label: 'EASY',   waves: 25,  hp: 0.55, dmg: 0.60, coin: 1.35, start: 200, baseHp: 650 },
-  normal: { id: 'normal', label: 'NORMAL', waves: 50,  hp: 1.00, dmg: 1.00, coin: 1.00, start: 150, baseHp: 550 },
-  hard:   { id: 'hard',   label: 'HARD',   waves: 100, hp: 1.30, dmg: 1.25, coin: 0.95, start: 120, baseHp: 500 }
+  easy:   { id: 'easy',   label: 'EASY',   waves: 1,  hp: 0.55, dmg: 0.60, coin: 1.35, start: 200, baseHp: 650 },
+  normal: { id: 'normal', label: 'NORMAL', waves: 50,  hp: 1.30, dmg: 1.18, coin: 1.00, start: 150, baseHp: 550 },
+  hard:   { id: 'hard',   label: 'HARD',   waves: 100, hp: 2.30, dmg: 1.80, coin: 0.95, start: 140, baseHp: 500 }
 };
 
 var UPGRADES = {
@@ -58,17 +58,24 @@ function dist(ax, ay, bx, by) { var dx = ax - bx, dy = ay - by; return Math.sqrt
 function progress(wave, total) { return total <= 1 ? 1 : (wave - 1) / (total - 1); }
 function tierFor(p) { return p >= 0.66 ? 3 : (p >= 0.30 ? 2 : 1); }
 
-// biome by wave NUMBER: 1-25 grass, 26-50 forest/snow, 51-75 desert, 76-100 castle
+// biome by wave NUMBER (10 biomes): grass 1-12, autumn 13-25, forest 26-37, snow 38-44, ice 45-50,
+// desert 51-60, swamp 61-70, graveyard 71-80, volcano 81-90, castle 91-100
 function biomeFor(wave) {
-  if (wave <= 25) return 'grass';
+  if (wave <= 12) return 'grass';
+  if (wave <= 25) return 'autumn';
   if (wave <= 37) return 'forest';
-  if (wave <= 50) return 'snow';
-  if (wave <= 75) return 'desert';
+  if (wave <= 44) return 'snow';
+  if (wave <= 50) return 'ice';
+  if (wave <= 60) return 'desert';
+  if (wave <= 70) return 'swamp';
+  if (wave <= 80) return 'graveyard';
+  if (wave <= 90) return 'volcano';
   return 'castle';
 }
 
 function Game(modeId, opts) {
   opts = opts || {};
+  this.biomeSel = opts.biome && opts.biome !== 'auto' ? opts.biome : 'auto';
   this.mode = MODES[modeId] || MODES.normal;
   this.total = this.mode.waves;
   this.coins = this.mode.start;
@@ -95,10 +102,12 @@ function Game(modeId, opts) {
   this.onWaveClear = null;
   this.onEnd = null;
   this.onShake = null;
+  this.onSound = null;
   this.wave = 1;             // first wave to be played
   this.prepT = 5;
 }
 
+Game.prototype.snd = function (n) { if (this.onSound) this.onSound(n); };
 Game.prototype.unitCap = function () { return UNIT_CAP_BASE + this.up.cap * 5; };
 Game.prototype.countPlayers = function () { var n = 0; for (var i = 0; i < this.ents.length; i++) { var e = this.ents[i]; if (e.side === 0 && e.state !== 'dead') n++; } return n; };
 Game.prototype.countEnemies = function () {
@@ -137,9 +146,10 @@ Game.prototype.spawnUnit = function (type) {
     hp: d.hp * hpMul, maxhp: d.hp * hpMul, baseHp: d.hp,
     dmg: d.dmg, range: d.range, cd: d.cd, cdT: rnd(0, 0.3), speed: d.speed * rnd(0.94, 1.06),
     state: 'walk', st: 0, anim: rnd(0, 1), atkT: 0, hitDone: true, hurtT: 0, deadT: 0,
-    scale: 1, boss: false, slot: 0
+    scale: 1, boss: false, slot: 0, ranged: !!d.proj && d.range >= 80
   };
   this.ents.push(e);
+  this.snd('recruit');
   this.addFx('dust', e.x, e.y, 0.5, 0.35);
   return e;
 };
@@ -158,7 +168,7 @@ Game.prototype.spawnEnemy = function (type, boss) {
     state: 'walk', st: 0, anim: rnd(0, 1), atkT: 0, hitDone: true, hurtT: 0, deadT: 0,
     scale: boss ? 1.6 : 1, boss: !!boss, reward: d.reward * (boss ? 6 : 1)
   };
-  if (boss) { e.y = (FIELD_TOP + FIELD_BOT) / 2 + 10; e.x = W + 30; this.bossAlive = true; this.addFx('magic_circle', e.x - 60, e.y, 1.2, 1.4); }
+  if (boss) { this.snd('boss'); e.y = (FIELD_TOP + FIELD_BOT) / 2 + 10; e.x = W + 30; this.bossAlive = true; this.addFx('magic_circle', e.x - 60, e.y, 1.2, 1.4); }
   this.ents.push(e);
   return e;
 };
@@ -204,6 +214,7 @@ Game.prototype.buyUpgrade = function (k) {
   var c = this.upCost(k);
   if (this.coins < c) return 'coins';
   this.coins -= c; this.up[k]++;
+  this.snd('upgrade');
   if (k === 'base') { this.baseMax += 160; this.baseHp = Math.min(this.baseMax, this.baseHp + 160); }
   if (k === 'vit') {
     for (var i = 0; i < this.ents.length; i++) { var e = this.ents[i]; if (e.side === 0 && e.state !== 'dead') { var add = e.baseHp * 0.10; e.maxhp += add; e.hp += add; } }
@@ -227,6 +238,7 @@ Game.prototype.nearest = function (e, side, maxX) {
 Game.prototype.damage = function (t, amount, fxType) {
   if (t.state === 'dead') return;
   t.hp -= amount;
+  this.snd('hit');
   t.hurtT = 0.16;
   if (t.state !== 'attack' && !t.boss) t.state = 'hurt', t.st = 0.14;
   this.addFloat(t.x, t.y - (UNITS[t.type] || ENEMIES[t.type]).h * 0.9 * t.scale, String(Math.max(1, Math.round(amount))), t.side === 1 ? '#fff3a0' : '#ff8080');
@@ -236,9 +248,11 @@ Game.prototype.damage = function (t, amount, fxType) {
 
 Game.prototype.kill = function (t) {
   t.hp = 0; t.state = 'dead'; t.deadT = 0;
+  this.snd(t.boss ? 'bossdie' : 'die');
   if (t.side === 1) {
     var gain = Math.round(t.reward * (1 + 0.12 * this.up.eco) * this.mode.coin * (1 + progress(this.wave, this.total) * 0.8));
     this.coins += gain; this.kills++;
+    this.snd('coin');
     this.addFloat(t.x + 6, t.y - 30, '+' + gain, '#ffd84a');
     if (t.boss) {
       this.bossAlive = false;
@@ -267,16 +281,18 @@ Game.prototype.doAttack = function (e, t, isBase) {
   var dmg = e.dmg * (e.side === 0 ? (1 + 0.10 * this.up.atk) : 1);
   if (d.proj) {
     var kind = d.proj;
+    this.snd(kind === 'arrow' ? 'arrow' : kind === 'orb' ? 'magic' : 'dark');
     this.projs.push({
       kind: kind, x: e.x + (e.side === 0 ? 10 : -10) * e.scale, y: e.y - d.h * 0.55 * e.scale,
       tx: isBase ? BASE_X - 30 : t.x, ty: isBase ? e.y - 16 : t.y - 14, target: isBase ? null : t,
-      side: e.side, dmg: dmg, aoe: d.aoe || 0, speed: kind === 'arrow' ? 240 : 170, isBase: !!isBase, life: 3, ang: 0
+      side: e.side, dmg: dmg, aoe: d.aoe || 0, speed: kind === 'arrow' ? 300 : 190, isBase: !!isBase, life: 3, ang: 0
     });
     if (kind === 'orb') this.addFx('sparkle', e.x + 10, e.y - 24, 0.3, 0.4);
     if (kind === 'dark') this.addFx('purple_fire', e.x - 8, e.y - 26, 0.4, 0.45);
     return;
   }
   var fxName = d.fx || 'spark2';
+  this.snd(d.aoe ? 'heavy' : 'slash');
   if (isBase) {
     this.damageBase(dmg);
     this.addFx(fxName, BASE_X - 10, e.y - 16, 0.3, 0.6);
@@ -294,6 +310,7 @@ Game.prototype.doAttack = function (e, t, isBase) {
 Game.prototype.damageBase = function (amount) {
   if (this.phase === 'lost' || this.phase === 'won') return;
   this.baseHp -= amount; this.baseHit = 0.18;
+  this.snd('basehit');
   this.addFloat(BASE_X - 24, 214, String(Math.round(amount)), '#ff6a6a');
   if (this.baseHp <= 0) {
     this.baseHp = 0; this.phase = 'lost';
@@ -323,8 +340,8 @@ Game.prototype.update = function (dt) {
 
   var i, e, ents = this.ents;
   // rally formation index
-  var pi = 0;
-  for (i = 0; i < ents.length; i++) if (ents[i].side === 0 && ents[i].state !== 'dead') ents[i].slot = pi++;
+  var pi = 0, ri = 0;
+  for (i = 0; i < ents.length; i++) if (ents[i].side === 0 && ents[i].state !== 'dead') ents[i].slot = ents[i].ranged ? ri++ : pi++;
 
   for (i = 0; i < ents.length; i++) {
     e = ents[i];
@@ -370,6 +387,13 @@ Game.prototype.update = function (dt) {
       if (inRange) {
         e.state = 'idle';
         if (e.cdT <= 0) { e.cdT = e.cd; e.state = 'attack'; e.atkT = 0.42; e.hitDone = false; }
+        else if (e.ranged && e.side === 0 && dx < 60 && e.x > BASE_X + 22) {
+          // archers & mages back away from enemies that get too close
+          e.state = 'walk'; e.x -= e.speed * 1.1 * dt;
+        }
+      } else if (e.ranged && e.side === 0) {
+        // hold the back line; only step forward a little (never past RHOLD) to get a target in range
+        if (e.x < 222 && dx > 0) { e.state = 'walk'; e.x += e.speed * dt; } else this.toRally(e, dt);
       } else {
         e.state = 'walk';
         // approach: close x first, then y
@@ -380,14 +404,7 @@ Game.prototype.update = function (dt) {
       }
     } else if (e.side === 0) {
       // return to rally position
-      var col = e.slot % 6, row = Math.floor(e.slot / 6);
-      var rx = 148 + col * 21 + (row % 2) * 9, ry = FIELD_TOP + 12 + ((e.slot * 37) % (FIELD_BOT - FIELD_TOP - 24));
-      var ddx = rx - e.x, ddy = ry - e.y;
-      if (Math.abs(ddx) > 3 || Math.abs(ddy) > 3) {
-        e.state = 'walk';
-        var s2 = e.speed * dt;
-        e.x += Math.max(-s2, Math.min(s2, ddx)); e.y += Math.max(-s2 * 0.7, Math.min(s2 * 0.7, ddy));
-      } else e.state = 'idle';
+      this.toRally(e, dt);
     } else {
       e.state = 'walk';
       e.x -= e.speed * dt;
@@ -432,12 +449,30 @@ Game.prototype.update = function (dt) {
   for (i = ents.length - 1; i >= 0; i--) if (ents[i].state === 'dead' && ents[i].deadT > 0.9) ents.splice(i, 1);
 };
 
+Game.prototype.toRally = function (e, dt) {
+  var rx, ry;
+  if (e.ranged) {
+    rx = 150 + (e.slot % 4) * 18 + (Math.floor(e.slot / 4) % 2) * 8;
+    ry = FIELD_TOP + 14 + ((e.slot * 41) % (FIELD_BOT - FIELD_TOP - 26));
+  } else {
+    rx = 212 + (e.slot % 5) * 20 + (Math.floor(e.slot / 5) % 2) * 9;
+    ry = FIELD_TOP + 12 + ((e.slot * 37) % (FIELD_BOT - FIELD_TOP - 24));
+  }
+  var ddx = rx - e.x, ddy = ry - e.y;
+  if (Math.abs(ddx) > 3 || Math.abs(ddy) > 3) {
+    e.state = 'walk';
+    var s2 = e.speed * dt;
+    e.x += Math.max(-s2, Math.min(s2, ddx)); e.y += Math.max(-s2 * 0.7, Math.min(s2 * 0.7, ddy));
+  } else e.state = 'idle';
+};
+
 Game.prototype.projHit = function (pr) {
   if (pr.isBase) {
     this.damageBase(pr.dmg); this.addFx('spark2', pr.x, pr.y, 0.3, 0.6); return;
   }
   var side = pr.side === 0 ? 1 : 0;
   if (pr.aoe) {
+    this.snd('boom');
     this.addFx(pr.kind === 'orb' ? 'crystal' : 'purple_fire', pr.x, pr.y, 0.5, pr.kind === 'orb' ? 0.8 : 0.7);
     if (pr.kind === 'orb') this.addFx('magic_circle', pr.x, pr.y + 8, 0.5, 0.45);
     this.hitArea(pr.x, pr.y, pr.aoe, side, pr.dmg, null, pr.target);
@@ -459,25 +494,27 @@ Game.prototype.clearWave = function () {
   this.baseHp = Math.min(this.baseMax, this.baseHp + this.baseMax * 0.12);
   // heal army a little
   for (var i = 0; i < this.ents.length; i++) { var e = this.ents[i]; if (e.side === 0 && e.state !== 'dead') e.hp = Math.min(e.maxhp, e.hp + e.maxhp * 0.35); }
-  var prevBiome = biomeFor(this.wave);
+  var prevBiome = this.biomeAt(this.wave);
   this.wave++;
   this.phase = 'prep'; this.prepT = 7;
-  if (this.onWaveClear) this.onWaveClear(this.wave - 1, bonus, prevBiome !== biomeFor(this.wave));
+  if (this.onWaveClear) this.onWaveClear(this.wave - 1, bonus, prevBiome !== this.biomeAt(this.wave));
 };
+
+Game.prototype.biomeAt = function (w) { return this.biomeSel === 'auto' ? biomeFor(w) : this.biomeSel; };
 
 // ---- save / restore ---------------------------------------------------
 Game.prototype.serialize = function () {
   var army = [];
   for (var i = 0; i < this.ents.length; i++) { var e = this.ents[i]; if (e.side === 0 && e.state !== 'dead') army.push(e.type); }
-  return { v: 1, mode: this.mode.id, wave: this.wave, coins: this.coins, baseHp: this.baseHp, baseMax: this.baseMax, up: this.up, army: army, kills: this.kills };
+  return { v: 2, biome: this.biomeSel, mode: this.mode.id, wave: this.wave, coins: this.coins, baseHp: this.baseHp, baseMax: this.baseMax, up: this.up, army: army, kills: this.kills };
 };
 Game.restore = function (s) {
-  var g = new Game(s.mode);
+  var g = new Game(s.mode, { biome: s.biome });
   g.wave = Math.max(1, Math.min(g.total, s.wave | 0)); g.coins = s.coins | 0; g.baseMax = s.baseMax; g.baseHp = Math.min(s.baseMax, s.baseHp);
   g.up = s.up; g.kills = s.kills | 0; g.phase = 'prep'; g.prepT = 6;
   for (var i = 0; i < s.army.length && i < 90; i++) {
     var u = g.spawnUnit(s.army[i]);
-    u.x = 150 + (i % 5) * 17; g.fx.length = 0;
+    u.x = (u.ranged ? 150 : 212) + (i % 5) * 17; g.fx.length = 0;
   }
   g.fx.length = 0;
   return g;
@@ -486,7 +523,7 @@ Game.restore = function (s) {
 var API = {
   W: W, H: H, BASE_X: BASE_X, FIELD_TOP: FIELD_TOP, FIELD_BOT: FIELD_BOT,
   UNITS: UNITS, UNIT_ORDER: UNIT_ORDER, ENEMIES: ENEMIES, MODES: MODES, UPGRADES: UPGRADES, UP_ORDER: UP_ORDER,
-  Game: Game, biomeFor: biomeFor, progress: progress, tierFor: tierFor
+  Game: Game, biomeFor: biomeFor, BIOME_IDS: ['grass','autumn','forest','snow','ice','desert','swamp','graveyard','volcano','castle'], progress: progress, tierFor: tierFor
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.LS = API;
 })(typeof window !== 'undefined' ? window : globalThis);
