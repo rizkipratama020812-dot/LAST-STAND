@@ -5,7 +5,7 @@
 // =====================================================================================
 //  PENGATURAN DIAMOND / SKIN  (ubah angka di sini)
 // =====================================================================================
-var SKINS_ENABLED = false;                               // false = fitur skin 'SEGERA HADIR' (skin tidak dipakai & layar skin tertutup); ubah ke true untuk membukanya
+var SKINS_ENABLED = true;                               // false = fitur skin 'SEGERA HADIR' (skin tidak dipakai & layar skin tertutup); ubah ke true untuk membukanya
 var START_GEMS = 10000;                                      // diamond awal untuk kerajaan BARU (contoh: 500 untuk testing)
 var WIN_GEMS   = { easy: 15, normal: 40, hard: 100 };    // diamond yang didapat tiap menang, per tingkat kesulitan
 var SKIN_COST  = [0, 10, 25, 50, 90];                    // harga upgrade: Besik(gratis), Elite, Apik, Colector, Spesial
