@@ -69,6 +69,7 @@ var SOUNDS = {
   dark:    function () { tone('sawtooth', 240, 70, 0.34, 0.16); noise('lowpass', 700, 150, 0.3, 0.14); },
   hit:     function () { noise('bandpass', 1300, 600, 0.06, 0.24, 0, 2); tone('square', 190, 90, 0.06, 0.08); },
   die:     function () { tone('square', 320, 60, 0.26, 0.12); noise('lowpass', 1200, 200, 0.18, 0.16); },
+  growl:   function () { tone('sawtooth', 120, 62, 0.42, 0.14); tone('square', 92, 48, 0.4, 0.09, 0.03); noise('lowpass', 700, 200, 0.35, 0.12); },
   boom:    function () { noise('lowpass', 1800, 110, 0.4, 0.5); tone('sine', 130, 40, 0.38, 0.4); },
   bossdie: function () { noise('lowpass', 1500, 60, 1.0, 0.7); tone('sine', 110, 28, 1.0, 0.55); tone('sawtooth', 90, 30, 0.8, 0.12); },
   boss:    function () { tone('sawtooth', 70, 38, 1.1, 0.3); tone('sawtooth', 105, 55, 1.0, 0.18, 0.05); noise('lowpass', 500, 90, 0.9, 0.2); },
@@ -79,7 +80,7 @@ var SOUNDS = {
   defeat:  function () { [392, 330, 262, 196, 131].forEach(function (f, i) { tone('sawtooth', f, f * 0.96, 0.4, 0.14, i * 0.26); }); noise('lowpass', 600, 80, 1.2, 0.2, 0.3); }
 };
 // minimum gap (ms) between two plays of the same sound, protects low-end phones in big fights
-var GAP = { hit: 55, slash: 60, arrow: 70, magic: 90, dark: 120, die: 70, coin: 80, boom: 90, heavy: 90, basehit: 120, recruit: 50 };
+var GAP = { growl: 900, hit: 55, slash: 60, arrow: 70, magic: 90, dark: 120, die: 70, coin: 80, boom: 90, heavy: 90, basehit: 120, recruit: 50 };
 var last = {}, bucketT = 0, bucketN = 0;
 
 function play(name) {

@@ -2,9 +2,18 @@
 (function (root) {
 'use strict';
 
+// =====================================================================================
+//  PENGATURAN DIAMOND / SKIN  (ubah angka di sini)
+// =====================================================================================
+var SKINS_ENABLED = false;                               // false = fitur skin 'SEGERA HADIR' (skin tidak dipakai & layar skin tertutup); ubah ke true untuk membukanya
+var START_GEMS = 10000;                                      // diamond awal untuk kerajaan BARU (contoh: 500 untuk testing)
+var WIN_GEMS   = { easy: 15, normal: 40, hard: 100 };    // diamond yang didapat tiap menang, per tingkat kesulitan
+var SKIN_COST  = [0, 10, 25, 50, 90];                    // harga upgrade: Besik(gratis), Elite, Apik, Colector, Spesial
+// =====================================================================================
+
 var W = 640, H = 360;
 var BASE_X = 104;            // enemies stop here to hit the castle
-var FIELD_TOP = 166, FIELD_BOT = 298;
+var FIELD_TOP = 166, FIELD_BOT = 302;
 var LEASH = 360;             // player units won't chase enemies beyond this x
 
 // ---- DATA -------------------------------------------------------------
@@ -16,7 +25,7 @@ var UNITS = {
   mage:      { name: 'Mage',      cost: 95,  hp: 52,  dmg: 30, range: 170, cd: 1.50, speed: 26, h: 35, proj: 'orb', aoe: 28, desc: 'Sihir area' },
   heavy:     { name: 'Heavy',     cost: 130, hp: 320, dmg: 40, range: 23, cd: 1.30, speed: 21, h: 40, fx: 'slash3', aoe: 26, desc: 'Tebasan area' }
 };
-var UNIT_ORDER = ['swordsman', 'archer', 'knight', 'spearman', 'mage', 'heavy'];
+var UNIT_ORDER = ['swordsman', 'archer', 'spearman', 'knight', 'mage', 'heavy'];
 
 var ENEMIES = {
   goblin:     { name: 'Goblin',      tier: 1, hp: 38,  dmg: 6,  range: 15, cd: 0.80, speed: 33, h: 32, reward: 6,  fx: 'spark2' },
@@ -36,9 +45,9 @@ var TIER_POOL = {
 };
 
 var MODES = {
-  easy:   { id: 'easy',   label: 'EASY',   waves: 15,  hp: 0.55, dmg: 0.60, coin: 1.35, start: 200, baseHp: 650 },
-  normal: { id: 'normal', label: 'NORMAL', waves: 50,  hp: 1.30, dmg: 1.18, coin: 1.00, start: 150, baseHp: 550 },
-  hard:   { id: 'hard',   label: 'HARD',   waves: 100, hp: 2.30, dmg: 1.80, coin: 0.95, start: 140, baseHp: 500 }
+  easy:   { id: 'easy',   label: 'EASY',   waves: 25,  hp: 0.55, dmg: 0.60, coin: 1.350, start: 200, baseHp: 650 },
+  normal: { id: 'normal', label: 'NORMAL', waves: 50,  hp: 1.38, dmg: 1.22, coin: 1.00, start: 150, baseHp: 550 },
+  hard:   { id: 'hard',   label: 'HARD',   waves: 100, hp: 2.45, dmg: 1.90, coin: 0.95, start: 140, baseHp: 500 }
 };
 
 var UPGRADES = {
@@ -75,6 +84,7 @@ function biomeFor(wave) {
 
 function Game(modeId, opts) {
   opts = opts || {};
+  this.skins = opts.skins || {};
   this.biomeSel = opts.biome && opts.biome !== 'auto' ? opts.biome : 'auto';
   this.mode = MODES[modeId] || MODES.normal;
   this.total = this.mode.waves;
@@ -142,13 +152,14 @@ Game.prototype.spawnUnit = function (type) {
   var hpMul = 1 + 0.10 * this.up.vit;
   var e = {
     id: this.nextId++, side: 0, type: type,
-    x: BASE_X - 6 + rnd(-4, 6), y: rnd(FIELD_TOP + 10, FIELD_BOT - 6),
+    x: BASE_X + 2, y: 234,
     hp: d.hp * hpMul, maxhp: d.hp * hpMul, baseHp: d.hp,
     dmg: d.dmg, range: d.range, cd: d.cd, cdT: rnd(0, 0.3), speed: d.speed * rnd(0.94, 1.06),
     state: 'walk', st: 0, anim: rnd(0, 1), atkT: 0, hitDone: true, hurtT: 0, deadT: 0,
-    scale: 1, boss: false, slot: 0, ranged: !!d.proj && d.range >= 80
+    scale: 1, boss: false, slot: 0, ranged: !!d.proj && d.range >= 80, skin: this.skins[type] | 0
   };
   this.ents.push(e);
+  this.formation(); e.y = e.fy;                // step out of the gate straight into your own lane
   this.snd('recruit');
   this.addFx('dust', e.x, e.y, 0.5, 0.35);
   return e;
@@ -285,13 +296,15 @@ Game.prototype.doAttack = function (e, t, isBase) {
     this.projs.push({
       kind: kind, x: e.x + (e.side === 0 ? 10 : -10) * e.scale, y: e.y - d.h * 0.55 * e.scale,
       tx: isBase ? BASE_X - 30 : t.x, ty: isBase ? e.y - 16 : t.y - 14, target: isBase ? null : t,
-      side: e.side, dmg: dmg, aoe: d.aoe || 0, speed: kind === 'arrow' ? 300 : 190, isBase: !!isBase, life: 3, ang: 0
+      side: e.side, dmg: dmg, aoe: d.aoe || 0, speed: kind === 'arrow' ? 300 : 190, isBase: !!isBase, life: 3, ang: 0,
+      ut: e.side === 0 && SKINS_ENABLED ? e.type : null, skin: e.skin | 0
     });
     if (kind === 'orb') this.addFx('sparkle', e.x + 10, e.y - 24, 0.3, 0.4);
     if (kind === 'dark') this.addFx('purple_fire', e.x - 8, e.y - 26, 0.4, 0.45);
     return;
   }
   var fxName = d.fx || 'spark2';
+  if (e.side === 0 && SKINS_ENABLED) fxName = 'skin:' + e.type + ':' + (e.skin | 0);          // each skin brings its own slash / shield / burst effect
   this.snd(d.aoe ? 'heavy' : 'slash');
   if (isBase) {
     this.damageBase(dmg);
@@ -339,9 +352,7 @@ Game.prototype.update = function (dt) {
   }
 
   var i, e, ents = this.ents;
-  // rally formation index
-  var pi = 0, ri = 0;
-  for (i = 0; i < ents.length; i++) if (ents[i].side === 0 && ents[i].state !== 'dead') ents[i].slot = ents[i].ranged ? ri++ : pi++;
+  this.formation();
 
   for (i = 0; i < ents.length; i++) {
     e = ents[i];
@@ -449,21 +460,39 @@ Game.prototype.update = function (dt) {
   for (i = ents.length - 1; i >= 0; i--) if (ents[i].state === 'dead' && ents[i].deadT > 0.9) ents.splice(i, 1);
 };
 
-Game.prototype.toRally = function (e, dt) {
-  var rx, ry;
-  if (e.ranged) {
-    rx = 150 + (e.slot % 4) * 18 + (Math.floor(e.slot / 4) % 2) * 8;
-    ry = FIELD_TOP + 14 + ((e.slot * 41) % (FIELD_BOT - FIELD_TOP - 26));
-  } else {
-    rx = 212 + (e.slot % 5) * 20 + (Math.floor(e.slot / 5) % 2) * 9;
-    ry = FIELD_TOP + 12 + ((e.slot * 37) % (FIELD_BOT - FIELD_TOP - 24));
+// Neat battle lines: tanks in the front column, other melee behind them, shooters in their own block at the back.
+// Rows are filled from the middle outwards so a small army still looks centred.
+var ROWS = 5, ROW_GAP = 24, ROW_MID = 250, ROW_ORDER = [2, 1, 3, 0, 4];
+var MELEE_PRIO = { knight: 0, heavy: 0, swordsman: 1, spearman: 2 };
+var FRONT_X = 290, COL_GAP = 26, BACK_X = 160, BACK_GAP = 20;
+Game.prototype.formation = function () {
+  var melee = [], shoot = [], i, e, ents = this.ents;
+  for (i = 0; i < ents.length; i++) {
+    e = ents[i]; if (e.side !== 0 || e.state === 'dead') continue;
+    (e.ranged ? shoot : melee).push(e);
   }
-  var ddx = rx - e.x, ddy = ry - e.y;
-  if (Math.abs(ddx) > 3 || Math.abs(ddy) > 3) {
+  melee.sort(function (a, b) { return (MELEE_PRIO[a.type] || 0) - (MELEE_PRIO[b.type] || 0) || a.id - b.id; });
+  shoot.sort(function (a, b) { return a.id - b.id; });
+  for (i = 0; i < melee.length; i++) {
+    e = melee[i]; e.slot = i;
+    e.fx = FRONT_X - Math.floor(i / ROWS) * COL_GAP;
+    e.fy = ROW_MID + (ROW_ORDER[i % ROWS] - (ROWS - 1) / 2) * ROW_GAP;
+  }
+  for (i = 0; i < shoot.length; i++) {
+    e = shoot[i]; e.slot = i;
+    e.fx = BACK_X - Math.floor(i / ROWS) * BACK_GAP;
+    e.fy = ROW_MID + (ROW_ORDER[i % ROWS] - (ROWS - 1) / 2) * ROW_GAP;
+  }
+};
+Game.prototype.toRally = function (e, dt) {
+  var rx = e.fx !== undefined ? e.fx : 212, ry = e.fy !== undefined ? e.fy : 234;
+  var ddx = rx - e.x, ddy = ry - e.y, far = Math.abs(ddx) > 24 || Math.abs(ddy) > 24;
+  if (Math.abs(ddx) > 1.5 || Math.abs(ddy) > 1.5) {
     e.state = 'walk';
-    var s2 = e.speed * dt;
-    e.x += Math.max(-s2, Math.min(s2, ddx)); e.y += Math.max(-s2 * 0.7, Math.min(s2 * 0.7, ddy));
-  } else e.state = 'idle';
+    var s2 = e.speed * dt * (far ? 2.2 : 1);            // hurry to the line, then settle in gently
+    var d = Math.sqrt(ddx * ddx + ddy * ddy) || 1, st = Math.min(s2, d);
+    e.x += ddx / d * st; e.y += ddy / d * st;
+  } else { e.x = rx; e.y = ry; e.state = 'idle'; }
 };
 
 Game.prototype.projHit = function (pr) {
@@ -473,8 +502,9 @@ Game.prototype.projHit = function (pr) {
   var side = pr.side === 0 ? 1 : 0;
   if (pr.aoe) {
     this.snd('boom');
-    this.addFx(pr.kind === 'orb' ? 'crystal' : 'purple_fire', pr.x, pr.y, 0.5, pr.kind === 'orb' ? 0.8 : 0.7);
-    if (pr.kind === 'orb') this.addFx('magic_circle', pr.x, pr.y + 8, 0.5, 0.45);
+    if (pr.ut) this.addFx('skin:' + pr.ut + ':' + pr.skin, pr.x, pr.y - 4, 0.55, 0.9);
+    else this.addFx(pr.kind === 'orb' ? 'crystal' : 'purple_fire', pr.x, pr.y, 0.5, pr.kind === 'orb' ? 0.8 : 0.7);
+    if (pr.kind === 'orb' && !pr.ut) this.addFx('magic_circle', pr.x, pr.y + 8, 0.5, 0.45);
     this.hitArea(pr.x, pr.y, pr.aoe, side, pr.dmg, null, pr.target);
     if (pr.target && pr.target.state !== 'dead') this.damage(pr.target, pr.dmg, 'sparkle');
   } else if (pr.target && pr.target.state !== 'dead') {
@@ -508,13 +538,13 @@ Game.prototype.serialize = function () {
   for (var i = 0; i < this.ents.length; i++) { var e = this.ents[i]; if (e.side === 0 && e.state !== 'dead') army.push(e.type); }
   return { v: 2, biome: this.biomeSel, mode: this.mode.id, wave: this.wave, coins: this.coins, baseHp: this.baseHp, baseMax: this.baseMax, up: this.up, army: army, kills: this.kills };
 };
-Game.restore = function (s) {
-  var g = new Game(s.mode, { biome: s.biome });
+Game.restore = function (s, opts) {
+  var g = new Game(s.mode, { biome: s.biome, skins: opts && opts.skins });
   g.wave = Math.max(1, Math.min(g.total, s.wave | 0)); g.coins = s.coins | 0; g.baseMax = s.baseMax; g.baseHp = Math.min(s.baseMax, s.baseHp);
   g.up = s.up; g.kills = s.kills | 0; g.phase = 'prep'; g.prepT = 6;
   for (var i = 0; i < s.army.length && i < 90; i++) {
     var u = g.spawnUnit(s.army[i]);
-    u.x = (u.ranged ? 150 : 212) + (i % 5) * 17; g.fx.length = 0;
+    g.formation(); u.x = u.fx; u.y = u.fy; u.state = 'idle'; g.fx.length = 0;
   }
   g.fx.length = 0;
   return g;
@@ -523,6 +553,7 @@ Game.restore = function (s) {
 var API = {
   W: W, H: H, BASE_X: BASE_X, FIELD_TOP: FIELD_TOP, FIELD_BOT: FIELD_BOT,
   UNITS: UNITS, UNIT_ORDER: UNIT_ORDER, ENEMIES: ENEMIES, MODES: MODES, UPGRADES: UPGRADES, UP_ORDER: UP_ORDER,
+  SKIN_NAMES: ['Besik', 'Elite', 'Apik', 'Colector', 'Spesial'], SKINS_ENABLED: SKINS_ENABLED, SKIN_COST: SKIN_COST, WIN_GEMS: WIN_GEMS, START_GEMS: START_GEMS,
   Game: Game, biomeFor: biomeFor, BIOME_IDS: ['grass','autumn','forest','snow','ice','desert','swamp','graveyard','volcano','castle'], progress: progress, tierFor: tierFor
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.LS = API;

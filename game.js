@@ -81,15 +81,22 @@ var FRAMES = {
   darklord:  ['enemies', 3, [0], [0, 1, 2], [1, 2]]
 };
 var unitSprites = {};   // type@scale -> {frames:[canvas], flash:[canvas], idleW}
-function getUnitSprites(type, scale) {
-  var key = type + '@' + scale;
+var SKINS_ON = !!LS.SKINS_ENABLED;
+function getUnitSprites(type, scale, skin) {
+  var isP = !!UNITS[type], sk = isP ? (skin | 0) : 0;
+  var key = type + '@' + scale + '#' + sk;
   if (unitSprites[key]) return unitSprites[key];
-  var fm = FRAMES[type], def = UNITS[type] || ENEMIES[type];
-  var idle = img(fm[0], type + '_' + fm[2][0]); if (!idle) return null;
+  var fm = FRAMES[type], def = UNITS[type] || ENEMIES[type], names = null;
+  if (isP && SKINS_ON && img('skins', type + '_' + sk + '_0')) {          // player units use their skin art: pose A (stand / walk) + pose B (attack)
+    names = [type + '_' + sk + '_0', img('skins', type + '_' + sk + '_1') ? type + '_' + sk + '_1' : type + '_' + sk + '_0'];
+    fm = ['skins', 2, [0], [0], [1]];
+  }
+  var nameOf = function (i) { return names ? names[i] : type + '_' + i; };
+  var idle = img(fm[0], nameOf(fm[2][0])); if (!idle) return null;
   var sc = def.h * scale * RES / idle.height;          // one scale for every frame of the unit
   var out = { frames: [], flash: [], idleW: idle.width * sc / RES };
   for (var i = 0; i < fm[1]; i++) {
-    var im = img(fm[0], type + '_' + i); if (!im) { out.frames.push(null); out.flash.push(null); continue; }
+    var im = img(fm[0], nameOf(i)); if (!im) { out.frames.push(null); out.flash.push(null); continue; }
     var c = scaleTo(im, im.width * sc, im.height * sc);
     out.frames.push(c);
     var f = document.createElement('canvas'); f.width = c.width; f.height = c.height;
@@ -100,6 +107,7 @@ function getUnitSprites(type, scale) {
   unitSprites[key] = out; return out;
 }
 
+var SKIN_FM = ['skins', 2, [0], [0], [1]];
 var FXH = { slash1: 24, slash2: 24, slash3: 28, spark2: 18, sparkle: 18, explosion: 32, explosion2: 34, explosion3: 38, flame: 24,
   purple_fire: 26, dust: 18, smoke1: 22, crystal: 22, magic_circle: 24, blue_pillar: 42, tornado: 44, mage_orb: 12 };
 function fxSprite(name, h) {
@@ -118,34 +126,36 @@ var BIOME = {
     back:  [['tree', 54], ['pine', 46], ['tree', 48], ['bush_b', 16], ['bush', 16], ['pine', 40], ['tree', 60]],
     small: [['flowers', 11], ['flowers_b', 11], ['flower_y', 11], ['rock', 11], ['bush', 13], ['bush_b', 13]] },
   forest: { bg: 'forest', ground: 'forest_ground', path: 'forest_path', gs: 1.5, ps: 1.3, rim: 'rgba(50,30,8,.55)', hi: 'rgba(255,225,160,.2)',
-    back:  [['tree_f2', 74], ['tree_f3', 72], ['tree_f1', 46], ['pine_s', 36], ['tree_f2', 66], ['tree_f3', 60]],
+    fDecor: 'saturate(.92) brightness(.86) hue-rotate(6deg)',
+    back:  [['pine', 76], ['tree', 66], ['pine', 64], ['tree_f1', 46], ['pine', 70], ['tree', 58]],
     small: [['flower_y', 11], ['flower_y2', 11], ['stump', 14], ['rock_f', 11], ['bush_f', 14], ['stump2', 13]] },
-  snow:   { bg: 'snow', ground: 'snow_ground', path: 'snow_path', gs: 1.5, ps: 1.3, rim: 'rgba(40,60,130,.6)', hi: 'rgba(255,255,255,.35)',
-    back:  [['snow_pine1', 66], ['snow_pine2', 60], ['snow_dead', 50], ['snow_cliff', 36], ['snow_pine2', 54]],
+  snow:   { bg: 'snow', ground: 'snow_ground', path: 'snow_path', gs: 1.5, ps: 1.3, fGround: 'contrast(1.12) saturate(1.3) brightness(.95)', fDecor: 'contrast(1.35) saturate(1.1) brightness(.82)', shadow: 'rgba(30,60,130,.3)', rim: 'rgba(40,60,130,.6)', hi: 'rgba(255,255,255,.35)',
+    back:  [['snow_pine1', 88], ['dead_brown', 58], ['snow_pine1', 78], ['dead_brown', 52], ['snow_pine1', 84]],
     small: [['snow_bush1', 12], ['snow_rock1', 12], ['snow_rock2', 10], ['snow_bush1', 13]] },
   desert: { bg: 'desert', ground: 'desert_ground', path: 'desert_path', gs: 1.5, ps: 1.3, rim: 'rgba(90,50,10,.6)', hi: 'rgba(255,230,160,.25)', pathTint: 'rgba(110,60,20,.30)',
     back:  [['palm', 72], ['cactus2', 46], ['desert_rock', 38], ['palm', 66], ['cactus3', 32]],
     small: [['dry_grass', 12], ['sand_rock', 12], ['desert_stone', 10], ['bones', 11], ['skull', 9], ['cactus3', 18]] },
   autumn: { bg: 'grass', ground: 'grass_ground', path: 'grass_path', gs: 1.0, ps: 1.3, rim: 'rgba(80,40,10,.55)', hi: 'rgba(255,220,150,.25)',
-    fGround: 'sepia(.9) saturate(1.9) hue-rotate(-8deg) brightness(1.02)', fDecor: 'hue-rotate(-62deg) saturate(1.3)', fBg: 'sepia(.3) saturate(1.15)', fPath: 'saturate(1.1) brightness(.95)',
+    fGround: 'sepia(.9) saturate(2.2) hue-rotate(-14deg) brightness(.9) contrast(1.1)', fDecor: 'hue-rotate(-62deg) saturate(1.3)', fBg: 'sepia(.3) saturate(1.15)', fPath: 'sepia(.5) saturate(1.3) brightness(.74)',
     back:  [['tree', 56], ['pine', 44], ['tree', 50], ['bush_b', 16], ['tree', 62], ['pine', 40]],
     small: [['flowers', 11], ['flower_y', 11], ['rock', 11], ['bush', 13], ['stump', 13], ['bush_b', 13]] },
   ice:    { bg: 'snow', ground: 'snow_ground', path: 'snow_path', gs: 1.5, ps: 1.3, rim: 'rgba(20,70,150,.6)', hi: 'rgba(220,255,255,.45)',
-    fAll: 'hue-rotate(-14deg) saturate(1.5) brightness(1.06)', fb: '#a8e0ff',
-    back:  [['snow_pine1', 64], ['snow_cliff', 40], ['snow_pine2', 58], ['snow_cliff', 34], ['snow_pine1', 52]],
+    fAll: 'hue-rotate(-14deg) saturate(1.75) brightness(.98) contrast(1.12)', fDecor: 'contrast(1.35) saturate(1.1) brightness(.82) hue-rotate(10deg)', shadow: 'rgba(20,70,150,.3)', fb: '#a8e0ff',
+    back:  [['snow_pine1', 86], ['dead_dark', 56], ['snow_pine1', 76], ['crystal', 36, 'effects'], ['snow_pine1', 82]],
     small: [['snow_rock1', 12], ['snow_rock2', 10], ['snow_bush1', 12], ['crystal', 17, 'effects'], ['crystal', 13, 'effects']] },
   swamp:  { bg: 'forest', ground: 'forest_ground', path: 'forest_path', gs: 1.5, ps: 1.3, rim: 'rgba(20,30,5,.65)', hi: 'rgba(190,230,120,.18)', pathTint: 'rgba(40,60,10,.32)',
-    fAll: 'hue-rotate(18deg) saturate(.85) brightness(.78)', fb: '#8aa860', fog: 'rgba(150,190,120,',
-    back:  [['tree_f2', 74], ['tree_f3', 70], ['snow_dead', 52], ['tree_f2', 64], ['snow_dead', 46], ['tree_f3', 60]],
+    fAll: 'hue-rotate(18deg) saturate(1.05) brightness(.82) contrast(1.15)', fDecor: 'hue-rotate(24deg) saturate(.85) brightness(.82)', fb: '#8aa860', fog: 'rgba(150,190,120,',
+    back:  [['pine', 74], ['tree', 62], ['dead_brown', 54], ['pine', 64], ['dead_brown', 48], ['tree', 58]],
     small: [['stump', 14], ['bush_f', 14], ['bones', 11], ['rock_f', 11], ['stump2', 13], ['skull', 9]] },
-  graveyard: { bg: 'grass', ground: 'grass_ground', path: 'grass_path', gs: 1.0, ps: 1.3, rim: 'rgba(5,5,25,.7)', hi: 'rgba(150,170,255,.22)',
-    fAll: 'sepia(1) hue-rotate(196deg) saturate(.85) brightness(.72)', fb: '#6070b0', tint: '#9aa4e8', night: true,
-    back:  [['snow_dead', 56], ['snow_dead', 48], ['fence_a', 22], ['lantern', 26], ['snow_dead', 60], ['fence_b', 22]],
+  graveyard: { bg: 'grass', ground: 'grass_ground', path: 'grass_path', gs: 1.0, ps: 1.3, rim: 'rgba(5,5,25,.7)', hi: 'rgba(150,170,255,.3)', pathTint: 'rgba(205,200,255,.26)',
+    fAll: 'sepia(1) hue-rotate(196deg) saturate(1.15) brightness(.8) contrast(1.22)', fb: '#6070b0', tint: '#9aa4e8', night: true,
+    back:  [['dead_dark', 58], ['dead_dark', 50], ['fence_a', 22], ['dry_grass', 14], ['dead_dark', 62], ['fence_b', 22]],
     small: [['skull', 9], ['bones', 11], ['rock', 11], ['stump', 13], ['skull', 9], ['dry_grass', 12]] },
   volcano: { bg: 'desert', ground: 'desert_ground', path: 'desert_path', gs: 1.5, ps: 1.3, rim: 'rgba(40,5,0,.7)', hi: 'rgba(255,150,60,.3)', pathTint: 'rgba(30,8,4,.35)',
-    fBg: 'hue-rotate(-28deg) saturate(1.5) brightness(.7)', fGround: 'sepia(1) saturate(2.4) hue-rotate(-32deg) brightness(.62)', fDecor: 'hue-rotate(-20deg) saturate(1.2) brightness(.85)', fPath: 'hue-rotate(-12deg) saturate(.9) brightness(.52)', fb: '#c05030', tint: '#f0907a', lava: true,
-    back:  [['desert_rock', 42], ['snow_dead', 54], ['desert_rock', 36], ['snow_dead', 46], ['desert_rock', 40]],
-    small: [['bones', 11], ['skull', 9], ['sand_rock', 12], ['desert_stone', 10], ['bones', 11]] },
+    fBg: 'hue-rotate(-28deg) saturate(1.5) brightness(.7)', fGround: 'sepia(1) saturate(2.4) hue-rotate(-32deg) brightness(.8)', fDecor: 'hue-rotate(-30deg) saturate(1.25) brightness(.62) contrast(1.15)', fPath: 'hue-rotate(-12deg) saturate(.9) brightness(.52)', shadow: 'rgba(30,5,0,.35)', fb: '#c05030', tint: '#f0907a', lava: true,
+    backY: [192, 206],
+    back:  [['dead_dark', 46], ['sand_rock', 16], ['dead_dark', 40], ['sand_rock', 14], ['dead_dark', 50], ['desert_stone', 12]],
+    small: [['bones', 11], ['skull', 9], ['sand_rock', 12], ['desert_stone', 10], ['dead_dark', 30]] },
   castle: { bg: 'grass', ground: 'castle_ground', path: 'castle_path', gs: 0.9, ps: 1.1, rim: 'rgba(10,0,20,.7)', hi: 'rgba(200,170,255,.18)', tint: '#6a4a8a', castle: true,
     back:  [],
     small: [['skull', 9], ['bones', 11], ['barrel_b', 15], ['crate', 14], ['skull', 9]] }
@@ -174,7 +184,7 @@ function newLayer() {
   var c = document.createElement('canvas'); c.width = Math.round(W * RES); c.height = Math.round(H * RES);
   var g = c.getContext('2d'); g.setTransform(RES, 0, 0, RES, 0, 0); return { c: c, g: g };
 }
-function scatter(g, rnd, list, n, xMin, xMax, yMin, yMax, avoid) {
+function scatter(g, rnd, list, n, xMin, xMax, yMin, yMax, avoid, shadow) {
   if (!list.length) return;
   var items = [], span = (xMax - xMin) / n;
   for (var i = 0; i < n; i++) {
@@ -186,6 +196,7 @@ function scatter(g, rnd, list, n, xMin, xMax, yMin, yMax, avoid) {
   items.sort(function (a, b) { return a.y - b.y; });
   items.forEach(function (o) {
     var s = byH(o.grp, o.n, o.h); if (!s) return;
+    if (shadow) { g.fillStyle = shadow; g.beginPath(); g.ellipse(o.x, o.y - 1, Math.max(5, s.width / RES * 0.3), 3, 0, 0, 6.283); g.fill(); }
     put(g, s, o.x - s.width / RES / 2, o.y - s.height / RES);
   });
 }
@@ -267,18 +278,28 @@ function buildMap(biome) {
   // 5) decoration: tall things behind the road, small things along its edges
   var avoid = biome === 'grass' ? [352, 434] : null;
   var DL = B.fDecor ? newLayer() : null, dg = DL ? DL.g : g;
-  scatter(dg, rnd, B.back, 9, 128, 636, 152, 182, avoid);
+  scatter(dg, rnd, B.back, 9, 128, 636, B.backY ? B.backY[0] : 152, B.backY ? B.backY[1] : 182, avoid, B.shadow);
   scatter(dg, rnd, B.small, 8, 130, 632, 190, 205, avoid);
   scatter(dg, rnd, B.small, 8, 130, 632, 280, 298, avoid);
   if (DL) { gradeLayer(DL, B.fDecor, B.fb); g.drawImage(DL.c, 0, 0, W, H); }
 
   // 5b) colour grade the whole scene (recolours the shared art into a new biome)
   if (B.fAll) gradeLayer(L, B.fAll, B.fb);
+  gradeLayer(L, B.fFinal || 'contrast(1.06) saturate(1.08)', null);        // keeps every biome punchy instead of washed out
   if (B.night) {                      // moon + stars in the sky strip
     var ng = g.createLinearGradient(0, 0, 0, 150); ng.addColorStop(0, 'rgba(8,10,45,.6)'); ng.addColorStop(0.7, 'rgba(8,10,45,.45)'); ng.addColorStop(1, 'rgba(8,10,45,0)'); g.fillStyle = ng; g.fillRect(0, 0, W, 150);
     for (var si = 0; si < 40; si++) { g.fillStyle = 'rgba(255,255,230,' + (0.35 + rnd() * 0.5).toFixed(2) + ')'; g.fillRect(Math.floor(rnd() * W), Math.floor(rnd() * 70), 1, 1); }
     g.fillStyle = '#f4f1d0'; g.beginPath(); g.arc(540, 40, 17, 0, 6.283); g.fill();
     g.fillStyle = '#d0cca0'; g.fillRect(534, 34, 4, 4); g.fillRect(546, 46, 5, 4); g.fillRect(540, 30, 3, 3);
+  }
+  if (B.lava) {                       // burning braziers on both sides of the road (drawn after grading so they stay bright)
+    var fire = byH('decor', 'fire_big', 30), fire2 = byH('decor', 'fire_big', 22);
+    [[205, 204, fire], [340, 205, fire], [485, 204, fire], [615, 205, fire], [270, 297, fire2], [420, 298, fire2], [560, 297, fire2]].forEach(function (f) {
+      if (!f[2]) return;
+      var rg = g.createRadialGradient(f[0], f[1] - 10, 2, f[0], f[1] - 10, 30); rg.addColorStop(0, 'rgba(255,140,40,.35)'); rg.addColorStop(1, 'rgba(255,90,20,0)');
+      g.fillStyle = rg; g.fillRect(f[0] - 32, f[1] - 42, 64, 52);
+      put(g, f[2], f[0] - f[2].width / RES / 2, f[1] - f[2].height / RES);
+    });
   }
   if (B.lava) {                       // glowing horizon + lava cracks
     var lg = g.createLinearGradient(0, 100, 0, 170); lg.addColorStop(0, 'rgba(255,90,20,0)'); lg.addColorStop(1, 'rgba(255,110,30,.45)');
@@ -337,7 +358,7 @@ var game = null, shake = 0, shakeX = 0, shakeY = 0;
 var endFx = [];
 
 function frameIndex(e) {
-  var fm = FRAMES[e.type];
+  var fm = (e.side === 0 && SKINS_ON) ? SKIN_FM : FRAMES[e.type];
   if (e.state === 'attack') {
     var a = fm[4], prog = 1 - Math.max(0, e.atkT) / 0.42;
     return a[Math.min(a.length - 1, Math.floor(prog * a.length))];
@@ -347,8 +368,10 @@ function frameIndex(e) {
 }
 
 // Player units face right, enemies are mirrored so they always face left (toward the base).
+// Animation is frame based: idle, walk / run cycle, and attack frames (the enemies' open-mouth growl), plus a small hop / lunge.
+var animDt = 0;
 function drawEntity(e) {
-  var sp = getUnitSprites(e.type, e.scale); if (!sp) return;
+  var sp = getUnitSprites(e.type, e.scale, e.skin); if (!sp) return;
   var dir = e.side === 0 ? 1 : -1;
   var x = Math.round(e.x), y = Math.round(e.y);
   ctx.fillStyle = 'rgba(0,0,0,.28)';
@@ -390,7 +413,7 @@ function drawEntity(e) {
 
 function drawProj(p) {
   if (p.kind === 'arrow') {
-    var a = byH('characters', 'arrow', 7); if (!a) return;
+    var a = (p.ut && img('skins', p.ut + '_' + p.skin + '_fx')) ? byH('skins', p.ut + '_' + p.skin + '_fx', 11) : byH('characters', 'arrow', 7); if (!a) return;
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang);
     ctx.drawImage(a, -a.width / RES / 2, -a.height / RES / 2, a.width / RES, a.height / RES); ctx.restore();
   } else if (p.kind === 'orb') {
@@ -403,6 +426,11 @@ function drawProj(p) {
 function drawFx(f) {
   var t = f.age / f.dur, name = f.type;
   if (name === 'slash1' || name === 'slash2' || name === 'slash3') name = ['slash1', 'slash2', 'slash3'][Math.min(2, Math.floor(t * 3))];
+  if (name.indexOf('skin:') === 0) {
+    var pp = name.split(':'), key = pp[1] + '_' + pp[2] + '_fx', big = { heavy: 34, mage: 30, knight: 26, swordsman: 26, spearman: 26, archer: 14 }[pp[1]] || 26;
+    var ss = byH('skins', key, Math.round(big * (f.s / 0.45 > 1.6 ? 1.35 : 1) * (0.8 + 0.4 * t) / 2) * 2); if (!ss) return;
+    ctx.globalAlpha = Math.max(0, 1 - t * t); putC(ctx, ss, f.x + (pp[1] === 'swordsman' || pp[1] === 'spearman' ? -6 : 0), f.y); ctx.globalAlpha = 1; return;
+  }
   var sp = fxSprite(name, f.s * (0.75 + 0.5 * t)); if (!sp) return;
   ctx.globalAlpha = Math.max(0, 1 - t * t);
   var yy = f.y - (f.type === 'smoke1' || f.type === 'dust' ? t * 12 : 0);
@@ -411,7 +439,7 @@ function drawFx(f) {
 }
 
 function render(dt) {
-  var g = game;
+  var g = game; animDt = dt;
   ctx.setTransform(RES, 0, 0, RES, 0, 0);
   ctx.imageSmoothingEnabled = false;
   ctx.save();
@@ -422,10 +450,6 @@ function render(dt) {
   if (fl) put(ctx, fl, 98, 190 - Math.round(Math.sin(g.time * 5) * 1));
   var tf = fxSprite('flame', 0.45 + Math.sin(g.time * 14) * 0.05);
   if (tf) { putC(ctx, tf, 101, 218); putC(ctx, tf, 101, 272); }
-  if (curBiome === 'volcano') {
-    var vf = fxSprite('flame', 1.1 + Math.sin(g.time * 10) * 0.07);
-    if (vf) { putC(ctx, vf, 230, 190); putC(ctx, vf, 400, 188); putC(ctx, vf, 580, 190); }
-  }
   if (curBiome === 'castle') {
     var pf = fxSprite('purple_fire', 0.8 + Math.sin(g.time * 9) * 0.06);
     if (pf) { putC(ctx, pf, 215, 192); putC(ctx, pf, 330, 192); putC(ctx, pf, 560, 192); }
@@ -477,7 +501,7 @@ function curUser() { var d = readDB(); return d.current && d.users[d.current] ? 
 function login(name) {                    // local "login": creates the kingdom the first time, loads it afterwards
   var d = readDB(), k = userKey(name);
   if (!d.users[k]) {
-    d.users[k] = { name: name.trim(), saves: {}, best: {}, created: Date.now() };
+    d.users[k] = { name: name.trim(), saves: {}, best: {}, gems: LS.START_GEMS | 0, skins: {}, owned: {}, created: Date.now() };
     if (!Object.keys(d.users).some(function (x) { return x !== k; })) {          // adopt a pre-accounts save for the very first kingdom
       try { var old = JSON.parse(localStorage.getItem(OLDKEY)); if (old && old.saves) { d.users[k].saves = old.saves; d.users[k].best = old.best || {}; } } catch (e) { }
     }
@@ -653,14 +677,16 @@ function openMenu() {
   toMenuState();
   var hasSave = Object.keys(u.saves).length > 0;
   var el = showScreen('<div class="title">WAVE OF DOOM</div><div class="subtitle">PIXEL DEFENSE RPG</div>' +
-    '<div class="kname">' + icon('crown', 'pix') + '<span>KERAJAAN <b>' + esc(u.name.toUpperCase()) + '</b></span></div>' +
+    '<div class="kname">' + icon('crown', 'pix') + '<span>KERAJAAN <b>' + esc(u.name.toUpperCase()) + '</b></span>' + (SKINS_ON ? '<span class="gems">' + GEM_SVG + '<b>' + (u.gems | 0) + '</b></span>' : '') + '</div>' +
     '<div class="mainmenu"><button class="btn green mbtn big" id="mNew">NEW GAME</button>' +
     '<button class="btn gold mbtn big' + (hasSave ? '' : ' dis') + '" id="mCont">LANJUT GAME</button>' +
+    '<button class="btn mbtn big soon" id="mSkin">SKIN PASUKAN<small>SEGERA HADIR</small></button>' +
     '<button class="btn mbtn big" id="mSet">PENGATURAN</button></div>' +
     '<div class="credit">DIBUAT OLEH<b>RIZKI</b></div>' + fsBtn(), 'menu');
   menuBg(el); bindFs();
   press($('mNew'), openNewGame);
   press($('mCont'), function () { if (hasSave) openContinue(); else toast('Belum ada game tersimpan'); });
+  press($('mSkin'), function () { openSkins(); });
   press($('mSet'), openSettings);
 }
 
@@ -710,6 +736,63 @@ function openContinue() {
   el.querySelectorAll('[data-m]').forEach(function (b) { press(b, function () { startGame(b.dataset.m, s.saves[b.dataset.m]); }); });
   press($('cBack'), openMenu);
 }
+
+var GEM_SVG = '<svg class="gem" viewBox="0 0 12 11" shape-rendering="crispEdges"><path fill="#0a1022" d="M2 0h8l2 3-6 8-6-8z"/><path fill="#5fd8ff" d="M3 1h6l2 2-5 7-5-7z"/><path fill="#c9f6ff" d="M3 1h3l-1 2H1.5zM6 1h3l1.5 2H7z"/><path fill="#2a9fe0" d="M1.5 3H5l1 7zM10.5 3H7l-1 7z"/></svg>';
+var SKIN_LOOK = ['Perak', 'Biru', 'Ungu', 'Emas', 'Merah'];
+function skinImg(t, sk, cls) { return '<img class="' + (cls || '') + '" src="' + url('skins/' + t + '_' + sk + '_0') + '" alt="">'; }
+function openSkinsSoon() {
+  var tiers = LS.SKIN_NAMES.map(function (nm, i) {
+    return '<div class="soontier"><img src="' + url('skins/swordsman_' + i + '_0') + '" alt=""><b>' + nm.toUpperCase() + '</b></div>';
+  }).join('');
+  var el = showScreen('<div class="panel dlg soonp"><h2>SKIN PASUKAN</h2><div class="soonbadge">SEGERA HADIR</div>' +
+    '<div class="stat">Tingkatkan tampilan pasukanmu dari Besik sampai Spesial dengan diamond hasil kemenangan.</div>' +
+    '<div class="soonrow">' + tiers + '</div>' +
+    '<div class="row"><button class="btn gold mbtn" id="soonBack">OKE</button></div></div>', 'menu');
+  menuBg(el);
+  press($('soonBack'), openMenu);
+}
+function openSkins(unit, view) {
+  if (!SKINS_ON) { openSkinsSoon(); return; }
+  var u = curUser(); if (!u) { openLogin(); return; }
+  unit = unit || 'swordsman';
+  var owned = (u.owned && u.owned[unit]) | 0, eq = Math.min(owned, (u.skins && u.skins[unit]) | 0);
+  if (view === undefined) view = eq;
+  var gems = u.gems | 0, next = owned + 1, cost = LS.SKIN_COST[next];
+  var list = LS.UNIT_ORDER.map(function (t) {
+    var e2 = Math.min((u.owned && u.owned[t]) | 0, (u.skins && u.skins[t]) | 0);
+    return '<button class="btn skunit' + (t === unit ? ' sel' : '') + '" data-u="' + t + '">' + skinImg(t, e2) + '<span>' + UNITS[t].name.toUpperCase() + '</span></button>';
+  }).join('');
+  var tiers = LS.SKIN_NAMES.map(function (nm, i) {
+    var st = i <= owned ? (i === eq ? 'DIPAKAI' : 'MILIK') : (i === next ? GEM_SVG + cost : 'TERKUNCI');
+    return '<button class="btn sktier' + (i === view ? ' sel' : '') + (i <= owned ? ' own' : ' lock') + (i === eq ? ' eq' : '') + '" data-t="' + i + '">' + skinImg(unit, i) + '<b>' + nm.toUpperCase() + '</b><small>' + st + '</small></button>';
+  }).join('');
+  var fxImg = img('skins', unit + '_' + view + '_fx') ? '<img class="skfx" src="' + url('skins/' + unit + '_' + view + '_fx') + '" alt="">' : '';
+  var upLabel = next > 4 ? 'SKIN MAKSIMAL' : 'UPGRADE ' + SKIN_NAMES_UP(next) + ' ' + GEM_SVG + cost;
+  var el = showScreen('<div class="panel skinp"><div class="skhead"><h2>SKIN PASUKAN</h2><div class="gems big">' + GEM_SVG + '<b>' + gems + '</b></div></div>' +
+    '<div class="skbody"><div class="sklist">' + list + '</div><div class="skmain">' +
+    '<div class="skprev">' + skinImg(unit, view, 'skbig') + fxImg + '</div>' +
+    '<div class="skname">' + UNITS[unit].name.toUpperCase() + ' · <b>' + LS.SKIN_NAMES[view].toUpperCase() + '</b> <small>(' + SKIN_LOOK[view] + ')</small></div>' +
+    '<div class="sktiers">' + tiers + '</div></div></div>' +
+    '<div class="row"><button class="btn gold mbtn' + (next > 4 || gems < cost ? ' dis' : '') + '" id="skUp">' + upLabel + '</button><button class="btn mbtn" id="skBack">KEMBALI</button></div>' +
+    (next <= 4 && gems < cost ? '<div class="warn">Diamond kurang ' + (cost - gems) + '. Menangkan game untuk mendapat diamond.</div>' : '<div class="warn"></div>') + '</div>', 'menu');
+  menuBg(el);
+  el.querySelectorAll('[data-u]').forEach(function (b) { press(b, function () { openSkins(b.dataset.u); }); });
+  el.querySelectorAll('[data-t]').forEach(function (b) {
+    press(b, function () {
+      var t = +b.dataset.t;
+      if (t <= owned) { var d = readDB(); if (d.current && d.users[d.current]) { var uu = d.users[d.current]; uu.skins = uu.skins || {}; uu.skins[unit] = t; writeDB(d); } }
+      openSkins(unit, t);
+    });
+  });
+  press($('skUp'), function () {
+    if (next > 4 || gems < cost) return;
+    var d = readDB(), uu = d.current && d.users[d.current]; if (!uu) return;
+    uu.gems = (uu.gems | 0) - cost; uu.owned = uu.owned || {}; uu.skins = uu.skins || {}; uu.owned[unit] = next; uu.skins[unit] = next; writeDB(d);
+    SFX.play('upgrade'); openSkins(unit, next);
+  });
+  press($('skBack'), openMenu);
+}
+function SKIN_NAMES_UP(i) { return LS.SKIN_NAMES[i].toUpperCase(); }
 
 function openSettings(confirmDel) {
   var u = curUser(); if (!u) { openLogin(); return; }
@@ -763,13 +846,15 @@ function openUpgrades() {
 
 function endScreen(win) {
   var g = game;
-  var s = loadSave(); s.best[g.mode.id] = Math.max(s.best[g.mode.id] || 0, win ? g.total : g.wave); delete s.saves[g.mode.id]; writeSave(s);
+  var s = loadSave(); s.best[g.mode.id] = Math.max(s.best[g.mode.id] || 0, win ? g.total : g.wave); delete s.saves[g.mode.id];
+  var gain = win ? (LS.WIN_GEMS[g.mode.id] || 0) : 0; if (gain) s.gems = (s.gems | 0) + gain; writeSave(s);
   for (var i = 0; i < (win ? 40 : 26); i++) endFx.push({ t: win ? (i % 2 ? 'sparkle' : 'spark2') : (i % 2 ? 'smoke1' : 'purple_fire'), x: win ? Math.random() * W : 20 + Math.random() * 180, y: win ? -10 : 300 + Math.random() * 40,
     vx: (Math.random() - 0.5) * 30, vy: win ? 20 + Math.random() * 40 : -20 - Math.random() * 30, s: 0.7 + Math.random() * 0.8, life: 2 + Math.random() * 2, age: -Math.random() * 1.5, win: win });
   setTimeout(function () {
     if (!game || game !== g) return;
     var el = showScreen('<div class="panel dlg">' + (win ? icon('crown', 'pix') : '') + '<h2 style="color:' + (win ? '#ffd84a' : '#ff6a5a') + '">' + (win ? 'KEMENANGAN!' : 'MARKAS HANCUR') + '</h2>' +
       '<div class="stat">' + (win ? 'Semua ' + g.total + ' wave berhasil dipertahankan!' : 'Bertahan sampai wave ' + g.wave + ' dari ' + g.total) + '<br>Musuh dikalahkan: ' + g.kills + '</div>' +
+      (gain && SKINS_ON ? '<div class="gainrow">' + GEM_SVG + '<b>+' + gain + ' DIAMOND</b></div>' : (win || !SKINS_ON ? '' : '<div class="stat" style="opacity:.8;margin-top:calc(var(--u)*4px)">Menangkan game untuk mendapat diamond.</div>')) +
       '<div class="row"><button class="btn gold mbtn" id="eAgain">MAIN LAGI</button><button class="btn mbtn" id="eMenu">MENU</button></div></div>', 'dim');
     if (win) el.querySelector('img').style.cssText = 'height:calc(var(--u)*30px);width:auto;margin-bottom:calc(var(--u)*4px)';
     press($('eAgain'), function () { startGame(g.mode.id, null, g.biomeSel); });
@@ -785,7 +870,12 @@ function setBiome(b, instant) {
 
 function startGame(modeId, saved, biome) {
   SFX.musicDuck(false); SFX.musicPlay('battle'); clearScreen(); paused = false; inGame = true; endFx.length = 0; speed = 1; els.bSpeed.textContent = 'x1';
-  game = saved ? LS.Game.restore(saved) : new LS.Game(modeId, { biome: biome });
+  var skOpt = { skins: loadSave().skins || {} };
+  game = saved ? LS.Game.restore(saved, skOpt) : new LS.Game(modeId, { biome: biome, skins: skOpt.skins });
+  if (SKINS_ON) hud.querySelectorAll('.rec').forEach(function (b) {          // recruit buttons show the equipped skin
+    var t = b.dataset.t, sk = (skOpt.skins[t] | 0), im = b.querySelector('img.sp');
+    if (im) im.src = url(img('skins', t + '_' + sk + '_0') ? 'skins/' + t + '_' + sk + '_0' : 'characters/' + t + '_0');
+  });
   hud.style.display = 'block';
   setBiome(game.biomeAt(game.wave), true); fadeIn = 1;
   game.onWaveStart = function (w) {
