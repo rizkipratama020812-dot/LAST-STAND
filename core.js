@@ -10,7 +10,7 @@ var LEASH = 360;             // player units won't chase enemies beyond this x
 // ---- DATA -------------------------------------------------------------
 var UNITS = {
   swordsman: { name: 'Swordsman', cost: 30,  hp: 75,  dmg: 13, range: 17, cd: 0.70, speed: 36, h: 34, fx: 'slash1', desc: 'Murah & cepat' },
-  archer:    { name: 'Archer',    cost: 45,  hp: 46,  dmg: 1200, range: 190, cd: 0.90, speed: 30, h: 33, proj: 'arrow', desc: 'Jarak jauh' },
+  archer:    { name: 'Archer',    cost: 45,  hp: 46,  dmg: 12, range: 190, cd: 0.90, speed: 30, h: 33, proj: 'arrow', desc: 'Jarak jauh' },
   knight:    { name: 'Knight',    cost: 75,  hp: 190, dmg: 15, range: 18, cd: 0.90, speed: 27, h: 36, fx: 'slash2', desc: 'Tank tangguh' },
   spearman:  { name: 'Spearman',  cost: 55,  hp: 95,  dmg: 18, range: 32, cd: 0.90, speed: 31, h: 38, fx: 'spark2', desc: 'Tusukan jauh' },
   mage:      { name: 'Mage',      cost: 95,  hp: 52,  dmg: 30, range: 170, cd: 1.50, speed: 26, h: 35, proj: 'orb', aoe: 28, desc: 'Sihir area' },
@@ -36,7 +36,7 @@ var TIER_POOL = {
 };
 
 var MODES = {
-  easy:   { id: 'easy',   label: 'EASY',   waves: 1,  hp: 0.55, dmg: 0.60, coin: 1.35, start: 200, baseHp: 650 },
+  easy:   { id: 'easy',   label: 'EASY',   waves: 15,  hp: 0.55, dmg: 0.60, coin: 1.35, start: 200, baseHp: 650 },
   normal: { id: 'normal', label: 'NORMAL', waves: 50,  hp: 1.30, dmg: 1.18, coin: 1.00, start: 150, baseHp: 550 },
   hard:   { id: 'hard',   label: 'HARD',   waves: 100, hp: 2.30, dmg: 1.80, coin: 0.95, start: 140, baseHp: 500 }
 };
